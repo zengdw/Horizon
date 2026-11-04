@@ -1,7 +1,7 @@
 theme: jekyll-theme-cayman
 title: Horizon Daily
 description: AI-curated daily digest of tech, AI, finance and crypto news
-baseurl: ""
+baseurl: "/Horizon" # Project site: zengdw.github.io/Horizon
 url: "https://zengdw.github.io"
 
 # Build settings
