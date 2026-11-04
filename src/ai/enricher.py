@@ -55,10 +55,10 @@ class GeneratedArtifact(BaseModel):
 
     @model_validator(mode="after")
     def validate_non_empty_content(self) -> "GeneratedArtifact":
-        if not self.title.strip():
+        if not (self.title or "").strip():
             raise ValueError("title must not be empty")
         for block in self.blocks:
-            if not block.title.strip() or not block.content.strip():
+            if not (block.title or "").strip() or not (block.content or "").strip():
                 raise ValueError(f"block {block.id} must not be empty")
         return self
 
@@ -70,7 +70,7 @@ class GeneratedBlock(BaseModel):
     @model_validator(mode="after")
     def validate_non_empty_block(self) -> "GeneratedBlock":
         if self.block and (
-            not self.block.title.strip() or not self.block.content.strip()
+            not (self.block.title or "").strip() or not (self.block.content or "").strip()
         ):
             raise ValueError(f"block {self.block.id} must not be empty")
         return self
@@ -80,7 +80,7 @@ class GeneratedBlockWithHeader(GeneratedBlock):
     @field_validator("title")
     @classmethod
     def validate_non_empty_title(cls, value: str) -> str:
-        if not value.strip():
+        if not (value or "").strip():
             raise ValueError("must not be empty")
         return value
 
@@ -365,7 +365,7 @@ class ContentEnricher:
                 error_message="Invalid enrichment artifact",
                 validator=validate_required_blocks,
             )
-            title = generated.title.strip()
+            title = (generated.title or "").strip()
             allowed_ids = {block.id for block in base_blocks}
             configured_ids = {block.id for block in configured_blocks}
             for generated_block in generated.blocks:
@@ -426,7 +426,7 @@ class ContentEnricher:
             )
 
             if not title:
-                title = generated.title.strip()
+                title = (generated.title or "").strip()
             if generated.block is None:
                 if not block.optional:
                     raise ValueError(f"Artifact is missing required block: {block.id}")
@@ -480,7 +480,7 @@ class ContentEnricher:
             if block.id in seen:
                 raise ValueError(f"Artifact contains duplicate block: {block.id}")
             seen.add(block.id)
-            if not block.title.strip() or not block.content.strip():
+            if not (block.title or "").strip() or not (block.content or "").strip():
                 raise ValueError(f"Artifact block {block.id} cannot be empty")
             block_source_ids = {
                 f"{result.request_id}-{index}"

@@ -1,0 +1,65 @@
+name: Daily Horizon Summary
+
+on:
+  schedule:
+    # 每天早上 9:00 北京时间 (UTC+8) = 01:00 UTC
+    - cron: '0 1 * * *'
+  workflow_dispatch:      # 允许手动触发
+
+jobs:
+  daily-summary:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # 用于推送 GitHub Pages
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.26"
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Prepare config from environment
+        run: |
+          # 创建 .env 文件
+          echo "SENSENOVA_API_KEY=${{ secrets.SENSENOVA_API_KEY }}" > .env
+          # 复制本地配置为正式配置
+          cp data/config.json data/config.json.bak
+          python -c "
+import json
+c = json.load(open('data/config.json'))
+# 确保使用商汤端点
+c['ai']['provider'] = 'openai'
+c['ai']['model'] = 'sensenova-6.8-flash-lite'
+c['ai']['base_url'] = 'https://token.sensenova.cn/v1'
+c['ai']['api_key_env'] = 'SENSENOVA_API_KEY'
+json.dump(c, open('data/config.json', 'w'), ensure_ascii=False, indent=2)
+"
+
+      - name: Run Horizon
+        env:
+          SENSENOVA_API_KEY: ${{ secrets.SENSENOVA_API_KEY }}
+        run: uv run horizon --hours 24 --log-level INFO
+
+      - name: Set current date
+        run: echo "DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs
+          keep_files: true
+          commit_message: "📝 Daily Summary: ${{ env.DATE }}"
+          publish_branch: gh-pages
+          enable_jekyll: true
