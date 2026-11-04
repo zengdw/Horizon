@@ -35,16 +35,7 @@ jobs:
           echo "SENSENOVA_API_KEY=${{ secrets.SENSENOVA_API_KEY }}" > .env
           # 复制本地配置为正式配置
           cp data/config.json data/config.json.bak
-          python -c "
-import json
-c = json.load(open('data/config.json'))
-# 确保使用商汤端点
-c['ai']['provider'] = 'openai'
-c['ai']['model'] = 'sensenova-6.8-flash-lite'
-c['ai']['base_url'] = 'https://token.sensenova.cn/v1'
-c['ai']['api_key_env'] = 'SENSENOVA_API_KEY'
-json.dump(c, open('data/config.json', 'w'), ensure_ascii=False, indent=2)
-"
+          python -c 'import json; c = json.load(open("data/config.json")); c["ai"]["provider"] = "openai"; c["ai"]["model"] = "sensenova-6.8-flash-lite"; c["ai"]["base_url"] = "https://token.sensenova.cn/v1"; c["ai"]["api_key_env"] = "SENSENOVA_API_KEY"; json.dump(c, open("data/config.json", "w"), ensure_ascii=False, indent=2)'
 
       - name: Run Horizon
         env:
