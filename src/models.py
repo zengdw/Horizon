@@ -242,6 +242,9 @@ class AIConfig(BaseModel):
         invalid = [language for language in languages if not language_tag.fullmatch(language)]
         if invalid:
             raise ValueError(f"invalid language code: {invalid[0]!r}")
+        language_keys = [language.replace("_", "-").casefold() for language in languages]
+        if len(language_keys) != len(set(language_keys)):
+            raise ValueError("output languages must be unique")
         return languages
 
 
@@ -271,6 +274,7 @@ class ExtractorType(str, Enum):
     TRAFILATURA = "trafilatura"
     FIRECRAWL = "firecrawl"
     OUTCRAWL = "outcrawl"
+    SPECSTREAM = "specstream"
 
 
 class TrafilaturaExtractorConfig(BaseModel):
@@ -291,8 +295,18 @@ class OutcrawlExtractorConfig(BaseModel):
     only_main_content: bool = True
 
 
+class SpecStreamExtractorConfig(BaseModel):
+    type: Literal[ExtractorType.SPECSTREAM] = ExtractorType.SPECSTREAM
+    api_key_env: str = "SPECSTREAM_API_KEY"
+
+
 ExtractorConfig = Annotated[
-    Union[TrafilaturaExtractorConfig, FirecrawlExtractorConfig, OutcrawlExtractorConfig],
+    Union[
+        TrafilaturaExtractorConfig,
+        FirecrawlExtractorConfig,
+        OutcrawlExtractorConfig,
+        SpecStreamExtractorConfig,
+    ],
     Field(discriminator="type"),
 ]
 
@@ -588,7 +602,18 @@ class CollectionConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    # Positivity is collection_hours(), applied once before a run. This field
+    # stores the configured number and does not check it again.
     time_window_hours: int = 24
+
+    @field_validator("time_window_hours", mode="before")
+    @classmethod
+    def reject_boolean_time_window(cls, value: Any) -> Any:
+        # Pydantic's lax int conversion accepts bool as 0/1, so reject it before
+        # collection_hours() can only see the coerced integer.
+        if isinstance(value, bool):
+            raise ValueError("time_window_hours must be an integer, not a boolean")
+        return value
 
 
 class DigestConfig(BaseModel):

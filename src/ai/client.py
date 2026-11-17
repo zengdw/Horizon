@@ -4,8 +4,18 @@ import os
 import re
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
-from openai import AsyncAzureOpenAI, AsyncOpenAI, APIStatusError as OpenAIStatusError
-from anthropic import AsyncAnthropic, BadRequestError as AnthropicBadRequestError
+import httpx
+from openai import (
+    APIConnectionError as OpenAIConnectionError,
+    APIStatusError as OpenAIStatusError,
+    AsyncAzureOpenAI,
+    AsyncOpenAI,
+)
+from anthropic import (
+    APIConnectionError as AnthropicConnectionError,
+    AsyncAnthropic,
+    BadRequestError as AnthropicBadRequestError,
+)
 from google import genai
 from google.genai import types
 
@@ -99,6 +109,8 @@ def _is_temperature_unsupported(message: str) -> bool:
         or "only the default" in lowered
         or "may only be set to 1" in lowered
         or "only 1 is allowed" in lowered
+        # Anthropic: "temperature: Extra inputs are not permitted"
+        or "extra inputs are not permitted" in lowered
     )
 
 
@@ -665,6 +677,11 @@ class ChainedAIClient(AIClient):
         """Determine if an error warrants fallback to the next provider."""
         if isinstance(exc, AIProviderUnavailableError):
             return False
+        if isinstance(
+            exc,
+            (OpenAIConnectionError, AnthropicConnectionError, httpx.RequestError),
+        ):
+            return True
         msg = str(exc).lower()
         if "429" in msg or "rate limit" in msg:
             return True
